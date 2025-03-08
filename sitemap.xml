@@ -37,7 +37,5 @@
     <loc>https://localhost:1313/links/</loc>
   </url><url>
     <loc>https://localhost:1313/search/</loc>
-  </url><url>
-    <loc>https://localhost:1313/categories/cat1/</loc>
   </url>
 </urlset>
