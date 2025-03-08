@@ -3,7 +3,7 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://example.com/</loc>
-    <lastmod>2025-02-16T20:48:26+08:00</lastmod>
+    <lastmod>2025-03-08T11:26:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="zh-cn"
@@ -20,8 +20,11 @@
                 href="https://example.com/"
                 />
   </url><url>
+    <loc>https://example.com/tags/cpp/</loc>
+    <lastmod>2025-03-08T11:26:28+08:00</lastmod>
+  </url><url>
     <loc>https://example.com/post/</loc>
-    <lastmod>2025-02-16T20:48:26+08:00</lastmod>
+    <lastmod>2025-03-08T11:26:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="zh-cn"
@@ -37,6 +40,27 @@
                 hreflang="en"
                 href="https://example.com/post/"
                 />
+  </url><url>
+    <loc>https://example.com/tags/</loc>
+    <lastmod>2025-03-08T11:26:28+08:00</lastmod>
+    <xhtml:link
+                rel="alternate"
+                hreflang="zh-cn"
+                href="https://example.com/zh-cn/tags/"
+                />
+    <xhtml:link
+                rel="alternate"
+                hreflang="ar"
+                href="https://example.com/ar/tags/"
+                />
+    <xhtml:link
+                rel="alternate"
+                hreflang="en"
+                href="https://example.com/tags/"
+                />
+  </url><url>
+    <loc>https://example.com/p/%E7%B1%BB%E5%9E%8B%E6%8E%A8%E5%AF%BC/</loc>
+    <lastmod>2025-03-08T11:26:28+08:00</lastmod>
   </url><url>
     <loc>https://example.com/p/test/</loc>
     <lastmod>2025-02-16T20:48:26+08:00</lastmod>
@@ -90,28 +114,10 @@
     <loc>https://example.com/categories/syntax/</loc>
     <lastmod>2019-03-11T00:00:00+00:00</lastmod>
   </url><url>
-    <loc>https://example.com/tags/</loc>
+    <loc>https://example.com/categories/themes/</loc>
     <lastmod>2019-03-11T00:00:00+00:00</lastmod>
-    <xhtml:link
-                rel="alternate"
-                hreflang="zh-cn"
-                href="https://example.com/zh-cn/tags/"
-                />
-    <xhtml:link
-                rel="alternate"
-                hreflang="ar"
-                href="https://example.com/ar/tags/"
-                />
-    <xhtml:link
-                rel="alternate"
-                hreflang="en"
-                href="https://example.com/tags/"
-                />
   </url><url>
     <loc>https://example.com/tags/themes/</loc>
-    <lastmod>2019-03-11T00:00:00+00:00</lastmod>
-  </url><url>
-    <loc>https://example.com/categories/themes/</loc>
     <lastmod>2019-03-11T00:00:00+00:00</lastmod>
   </url><url>
     <loc>https://example.com/p/placeholder-text/</loc>
