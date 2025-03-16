@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="右值 右值以及与其相关的一系列特性是现代 C++ 中最重要的特性之一，最初的右值只有纯右值一种，之后为了高效移动资源的需求，C++11 将将亡值以及移动语义作为新特性加入到了标准中。结合类型推导形成完美转发机制使得 C++的资源管理从未如此高效。\n纯右值 在 C++ 98 中，表达式的值类别只有左值和右值两种，左值可以认为是在代码中有标识符的变量，或者说是可以取得内存地址的变量。而右值也就是纯右值，即不能直接取得其在内存中的地址的值，如单纯的数字 1 ，只能作为临时的变量。还有一种分辨方法是，能够在表达式中位于等号左边的值为左值，而右值只能位于等号的右侧，即不能赋值，这也与其没有对应内存地址而对应。\n1 2 3 int x = 1; // x是左值，1是右值 int *y = &amp;x; // y也是左值 int *z = &amp;1; // 错误，1是右值无法取地址 将亡值与移动语义 对将亡值的需求开始于 C++ 98 时开发者希望有一种方法快速进行资源管理类的资源交换或传递资源。比如一个类的成员变量中包括一个指针，则如果只有拷贝构造或者拷贝赋值时，会进行指针的浅拷贝，那么就会造成两个指针指向同一块内存资源的情况，如果此类的析构函数负责对指针进行释放，那么这两个实例在先后析构的过程中会调用两次析构函数，造成内存的多次释放。而如果使用深拷贝，即新开辟一段内存再对所有指针指向的元素进行复制，显然不够高效，且拷贝操作的形参带有 const 属性，也无法对原对象进行操作。\n因此，大佬们为了解决这一问题，做出新的约定，使用&amp;&amp;表示一种特殊的引用，当匹配到这样的实参时，构造或赋值函数会对所引用的实例做特殊处理，如在复制指针后将其指针指向 null，这样只需在析构时进行特殊判断即可。\n1 2 3 4 5 6 7 8 9 10 class field { public: field(const field &amp;other) { ptr = other.ptr; } //拷贝构造，析构时会造成内存的多次释放 field(field &amp;&amp;other) { // 以&amp;&amp;匹配时，会对other进行处理，避免多次释放 ptr = other.ptr; other.ptr = nullptr; } private: float *ptr; }; 在 C++ 11 后，这一特性作为移动语义进入了新标准，而&amp;&amp;所表示的引用则被称为右值引用，顾名思义，右值引用可以匹配到右值上：\n1 2 3 4 void func(int &amp;&amp;i) { std::cout &lt;&lt; &#34;右值&#34; &lt;&lt; &#34;\\n&#34;; } void func(const int &amp;i) { std::cout &lt;&lt; &#34;左值&#34; &lt;&lt; &#34;\\n&#34;; } int main() { func(1); } // 输出&#34;右值&#34; 虽然右值 1 也能匹配到从 const int&amp; 上，但显然此时右值引用 int&amp;&amp; 的匹配优先度较高。因为上面所提到的移动构造或移动语义的需求，显然需要一种方法将左值匹配到右值引用上，这一方式就是 std:: move，std:: move 的唯一作用其实就是在左值前强制加上&amp;&amp;，使其变为一种特殊的右值，即将亡值。\n">
+<title>右值、移动语义、完美转发</title>
+
+<link rel='canonical' href='https://localhost:1313/p/%E5%8F%B3%E5%80%BC%E7%A7%BB%E5%8A%A8%E8%AF%AD%E4%B9%89%E5%AE%8C%E7%BE%8E%E8%BD%AC%E5%8F%91/'>
+
+<link rel="stylesheet" href="/scss/style.min.738da3ee34b9414aae4b2ad47dac73d05564ecffa375f3299ec5a9e28a7a2a11.css"><meta property='og:title' content="右值、移动语义、完美转发">
+<meta property='og:description' content="右值 右值以及与其相关的一系列特性是现代 C++ 中最重要的特性之一，最初的右值只有纯右值一种，之后为了高效移动资源的需求，C++11 将将亡值以及移动语义作为新特性加入到了标准中。结合类型推导形成完美转发机制使得 C++的资源管理从未如此高效。\n纯右值 在 C++ 98 中，表达式的值类别只有左值和右值两种，左值可以认为是在代码中有标识符的变量，或者说是可以取得内存地址的变量。而右值也就是纯右值，即不能直接取得其在内存中的地址的值，如单纯的数字 1 ，只能作为临时的变量。还有一种分辨方法是，能够在表达式中位于等号左边的值为左值，而右值只能位于等号的右侧，即不能赋值，这也与其没有对应内存地址而对应。\n1 2 3 int x = 1; // x是左值，1是右值 int *y = &amp;x; // y也是左值 int *z = &amp;1; // 错误，1是右值无法取地址 将亡值与移动语义 对将亡值的需求开始于 C++ 98 时开发者希望有一种方法快速进行资源管理类的资源交换或传递资源。比如一个类的成员变量中包括一个指针，则如果只有拷贝构造或者拷贝赋值时，会进行指针的浅拷贝，那么就会造成两个指针指向同一块内存资源的情况，如果此类的析构函数负责对指针进行释放，那么这两个实例在先后析构的过程中会调用两次析构函数，造成内存的多次释放。而如果使用深拷贝，即新开辟一段内存再对所有指针指向的元素进行复制，显然不够高效，且拷贝操作的形参带有 const 属性，也无法对原对象进行操作。\n因此，大佬们为了解决这一问题，做出新的约定，使用&amp;&amp;表示一种特殊的引用，当匹配到这样的实参时，构造或赋值函数会对所引用的实例做特殊处理，如在复制指针后将其指针指向 null，这样只需在析构时进行特殊判断即可。\n1 2 3 4 5 6 7 8 9 10 class field { public: field(const field &amp;other) { ptr = other.ptr; } //拷贝构造，析构时会造成内存的多次释放 field(field &amp;&amp;other) { // 以&amp;&amp;匹配时，会对other进行处理，避免多次释放 ptr = other.ptr; other.ptr = nullptr; } private: float *ptr; }; 在 C++ 11 后，这一特性作为移动语义进入了新标准，而&amp;&amp;所表示的引用则被称为右值引用，顾名思义，右值引用可以匹配到右值上：\n1 2 3 4 void func(int &amp;&amp;i) { std::cout &lt;&lt; &#34;右值&#34; &lt;&lt; &#34;\\n&#34;; } void func(const int &amp;i) { std::cout &lt;&lt; &#34;左值&#34; &lt;&lt; &#34;\\n&#34;; } int main() { func(1); } // 输出&#34;右值&#34; 虽然右值 1 也能匹配到从 const int&amp; 上，但显然此时右值引用 int&amp;&amp; 的匹配优先度较高。因为上面所提到的移动构造或移动语义的需求，显然需要一种方法将左值匹配到右值引用上，这一方式就是 std:: move，std:: move 的唯一作用其实就是在左值前强制加上&amp;&amp;，使其变为一种特殊的右值，即将亡值。\n">
+<meta property='og:url' content='https://localhost:1313/p/%E5%8F%B3%E5%80%BC%E7%A7%BB%E5%8A%A8%E8%AF%AD%E4%B9%89%E5%AE%8C%E7%BE%8E%E8%BD%AC%E5%8F%91/'>
+<meta property='og:site_name' content='RetrO&#39;s'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='C&#43;&#43;' /><meta property='article:published_time' content='2025-03-16T23:55:11&#43;08:00'/><meta property='article:modified_time' content='2025-03-16T23:55:11&#43;08:00'/>
+<meta name="twitter:title" content="右值、移动语义、完美转发">
+<meta name="twitter:description" content="右值 右值以及与其相关的一系列特性是现代 C++ 中最重要的特性之一，最初的右值只有纯右值一种，之后为了高效移动资源的需求，C++11 将将亡值以及移动语义作为新特性加入到了标准中。结合类型推导形成完美转发机制使得 C++的资源管理从未如此高效。\n纯右值 在 C++ 98 中，表达式的值类别只有左值和右值两种，左值可以认为是在代码中有标识符的变量，或者说是可以取得内存地址的变量。而右值也就是纯右值，即不能直接取得其在内存中的地址的值，如单纯的数字 1 ，只能作为临时的变量。还有一种分辨方法是，能够在表达式中位于等号左边的值为左值，而右值只能位于等号的右侧，即不能赋值，这也与其没有对应内存地址而对应。\n1 2 3 int x = 1; // x是左值，1是右值 int *y = &amp;x; // y也是左值 int *z = &amp;1; // 错误，1是右值无法取地址 将亡值与移动语义 对将亡值的需求开始于 C++ 98 时开发者希望有一种方法快速进行资源管理类的资源交换或传递资源。比如一个类的成员变量中包括一个指针，则如果只有拷贝构造或者拷贝赋值时，会进行指针的浅拷贝，那么就会造成两个指针指向同一块内存资源的情况，如果此类的析构函数负责对指针进行释放，那么这两个实例在先后析构的过程中会调用两次析构函数，造成内存的多次释放。而如果使用深拷贝，即新开辟一段内存再对所有指针指向的元素进行复制，显然不够高效，且拷贝操作的形参带有 const 属性，也无法对原对象进行操作。\n因此，大佬们为了解决这一问题，做出新的约定，使用&amp;&amp;表示一种特殊的引用，当匹配到这样的实参时，构造或赋值函数会对所引用的实例做特殊处理，如在复制指针后将其指针指向 null，这样只需在析构时进行特殊判断即可。\n1 2 3 4 5 6 7 8 9 10 class field { public: field(const field &amp;other) { ptr = other.ptr; } //拷贝构造，析构时会造成内存的多次释放 field(field &amp;&amp;other) { // 以&amp;&amp;匹配时，会对other进行处理，避免多次释放 ptr = other.ptr; other.ptr = nullptr; } private: float *ptr; }; 在 C++ 11 后，这一特性作为移动语义进入了新标准，而&amp;&amp;所表示的引用则被称为右值引用，顾名思义，右值引用可以匹配到右值上：\n1 2 3 4 void func(int &amp;&amp;i) { std::cout &lt;&lt; &#34;右值&#34; &lt;&lt; &#34;\\n&#34;; } void func(const int &amp;i) { std::cout &lt;&lt; &#34;左值&#34; &lt;&lt; &#34;\\n&#34;; } int main() { func(1); } // 输出&#34;右值&#34; 虽然右值 1 也能匹配到从 const int&amp; 上，但显然此时右值引用 int&amp;&amp; 的匹配优先度较高。因为上面所提到的移动构造或移动语义的需求，显然需要一种方法将左值匹配到右值引用上，这一方式就是 std:: move，std:: move 的唯一作用其实就是在左值前强制加上&amp;&amp;，使其变为一种特殊的右值，即将亡值。\n">
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="Toggle Menu">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/img/avatar_hu_d8be6529cdb76977.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🍥</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/">RetrO&#39;s</a></h1>
+            <h2 class="site-description">Personal Site</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/RetrO598'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>Home</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/about/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>About</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>Archives</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>Search</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>Dark Mode</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">Table of contents</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#纯右值">纯右值</a></li>
+    <li><a href="#将亡值与移动语义">将亡值与移动语义</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="main-article">
+    <header class="article-header">
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/categories/%E6%8A%80%E6%9C%AF/" style="background-color: #2a9d8f; color: #fff;">
+                寄术
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/p/%E5%8F%B3%E5%80%BC%E7%A7%BB%E5%8A%A8%E8%AF%AD%E4%B9%89%E5%AE%8C%E7%BE%8E%E8%BD%AC%E5%8F%91/">右值、移动语义、完美转发</a>
+        </h2>
+    
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Mar 16, 2025</time>
+            </div>
+        
+
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+                <time class="article-time--reading">
+                    2 minute read
+                </time>
+            </div>
+        
+    </footer>
+    
+
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h1 id="右值">右值
+</h1><p>右值以及与其相关的一系列特性是现代 C++ 中最重要的特性之一，最初的右值只有纯右值一种，之后为了高效移动资源的需求，C++11 将将亡值以及移动语义作为新特性加入到了标准中。结合<a class="link" href="https://localhost:1313/p/%E7%B1%BB%E5%9E%8B%E6%8E%A8%E5%AF%BC/"  title="类型推导"
+    >类型推导</a>形成完美转发机制使得 C++的资源管理从未如此高效。</p>
+<h2 id="纯右值">纯右值
+</h2><p>在 C++ 98 中，表达式的值类别只有左值和右值两种，左值可以认为是在代码中有标识符的变量，或者说是可以取得内存地址的变量。而右值也就是纯右值，即不能直接取得其在内存中的地址的值，如单纯的数字 1 ，只能作为临时的变量。还有一种分辨方法是，能够在表达式中位于等号左边的值为左值，而右值只能位于等号的右侧，即不能赋值，这也与其没有对应内存地址而对应。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span> <span class="c1">// x是左值，1是右值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="o">*</span><span class="n">y</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">x</span><span class="p">;</span> <span class="c1">// y也是左值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="kt">int</span> <span class="o">*</span><span class="n">z</span> <span class="o">=</span> <span class="o">&amp;</span><span class="mi">1</span><span class="p">;</span> <span class="c1">// 错误，1是右值无法取地址
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h2 id="将亡值与移动语义">将亡值与移动语义
+</h2><p>对将亡值的需求开始于 C++ 98 时开发者希望有一种方法快速进行资源管理类的资源交换或传递资源。比如一个类的成员变量中包括一个指针，则如果只有拷贝构造或者拷贝赋值时，会进行指针的浅拷贝，那么就会造成两个指针指向同一块内存资源的情况，如果此类的析构函数负责对指针进行释放，那么这两个实例在先后析构的过程中会调用两次析构函数，造成内存的多次释放。而如果使用深拷贝，即新开辟一段内存再对所有指针指向的元素进行复制，显然不够高效，且拷贝操作的形参带有 const 属性，也无法对原对象进行操作。</p>
+<p>因此，大佬们为了解决这一问题，做出新的约定，使用&amp;&amp;表示一种特殊的引用，当匹配到这样的实参时，构造或赋值函数会对所引用的实例做特殊处理，如在复制指针后将其指针指向 null，这样只需在析构时进行特殊判断即可。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="k">class</span> <span class="nc">field</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"> <span class="k">public</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">  <span class="n">field</span><span class="p">(</span><span class="k">const</span> <span class="n">field</span> <span class="o">&amp;</span><span class="n">other</span><span class="p">)</span> <span class="p">{</span> <span class="n">ptr</span> <span class="o">=</span> <span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span> <span class="p">}</span> <span class="c1">//拷贝构造，析构时会造成内存的多次释放
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">field</span><span class="p">(</span><span class="n">field</span> <span class="o">&amp;&amp;</span><span class="n">other</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// 以&amp;&amp;匹配时，会对other进行处理，避免多次释放
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>    <span class="n">ptr</span> <span class="o">=</span> <span class="n">other</span><span class="p">.</span><span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">other</span><span class="p">.</span><span class="n">ptr</span> <span class="o">=</span> <span class="k">nullptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl"> <span class="k">private</span><span class="o">:</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">float</span> <span class="o">*</span><span class="n">ptr</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">};</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>在 C++ 11 后，这一特性作为移动语义进入了新标准，而&amp;&amp;所表示的引用则被称为右值引用，顾名思义，右值引用可以匹配到右值上：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">func</span><span class="p">(</span><span class="kt">int</span> <span class="o">&amp;&amp;</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;右值&#34;</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">func</span><span class="p">(</span><span class="k">const</span> <span class="kt">int</span> <span class="o">&amp;</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;左值&#34;</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span> <span class="n">func</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span> <span class="p">}</span> <span class="c1">// 输出&#34;右值&#34;
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>虽然右值 1 也能匹配到从 const int&amp; 上，但显然此时右值引用 int&amp;&amp; 的匹配优先度较高。因为上面所提到的移动构造或移动语义的需求，显然需要一种方法将左值匹配到右值引用上，这一方式就是 std:: move，std:: move 的唯一作用其实就是在左值前强制加上&amp;&amp;，使其变为一种特殊的右值，即<strong>将亡值</strong>。</p>
+<div class="details admonition abstract open">
+      <div class="details-summary admonition-title">
+        <i class="icon fas fa-list-ul fa-fw"></i>将亡值<i class="details-icon fas fa-angle-right fa-fw"></i>
+      </div>
+      <div class="details-content">
+        <div class="admonition-content">将亡值是介于纯右值和左值之间的一种值类别，首先其不能出现在表达式左侧，在代码中没有明确的标识符，这体现了它偏右值的性质；但它事实上存在于内存中，具有内存地址，这是它偏向于左值的一面。将亡值通常表示它会在不久之后便被销毁，如隐式转换便会产生将亡值，而人为使用std::move来使用将亡值主要发生在使用移动语义时。</div>
+      </div>
+    </div>
+<p>将亡值可以匹配到右值引用上，使得移动语义中的右值引用形参可以变相的接受左值，以此实现高效且安全的资源管理。值得注意的是，右值引用其实是一种左值，这一点可以用如下代码验证：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">func</span><span class="p">(</span><span class="kt">int</span> <span class="o">&amp;&amp;</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;右值&#34;</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">func</span><span class="p">(</span><span class="k">const</span> <span class="kt">int</span> <span class="o">&amp;</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span> <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;左值&#34;</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">;</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="o">&amp;&amp;</span><span class="n">m</span> <span class="o">=</span> <span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">func</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">i</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">  <span class="n">func</span><span class="p">(</span><span class="n">m</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="cm">/*
+</span></span></span><span class="line"><span class="cl"><span class="cm">右值
+</span></span></span><span class="line"><span class="cl"><span class="cm">左值
+</span></span></span><span class="line"><span class="cl"><span class="cm">*/</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>第一个 func 是标准的右值引用调用，它通过 move 将 i 变为将亡值，而第二个 func 属于直接传入右值引用，结果显示其匹配到了左值版本上。分析可知，std:: move (i) 产生的将亡值直接作为实参时，由于将亡值属于右值，故匹配右值版本的函数；但当其已经被赋值给右值引用后，右值引用虽然引用了一个右值但本身有明确的标识符，显然属于左值，因此匹配到左值版本的函数上。</p>
+<h1 id="完美转发">完美转发
+</h1><p>提到移动语义就不得不提完美转发，完美转发的需求来源于在需要将函数形参在函数内作为另一个函数的实参转发过去时，即进行函数的转发时，由于在函数内即使是以右值引用传入的参数也已经有了标识符和地址，属于左值，故在函数内部丢失了其传入函数时的值类别。而很多时候我们希望在函数内部保留其传入时的值类别以保证转发过程的高效 (通常是要调动移动语义来避免拷贝)。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="cp">#include</span> <span class="cpf">&lt;iostream&gt;</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp"></span>
+</span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="n">print</span><span class="p">(</span><span class="n">T</span><span class="o">&amp;</span> <span class="n">t</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;Lvalue ref&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="n">print</span><span class="p">(</span><span class="n">T</span><span class="o">&amp;&amp;</span> <span class="n">t</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;Rvalue ref&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">template</span> <span class="o">&lt;</span><span class="k">typename</span> <span class="n">T</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="n">testForward</span><span class="p">(</span><span class="n">T</span><span class="o">&amp;&amp;</span> <span class="n">v</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">print</span><span class="p">(</span><span class="n">v</span><span class="p">);</span>  <span class="c1">// v此时已经是个左值了,永远调用左值版本的print
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">print</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">forward</span><span class="o">&lt;</span><span class="n">T</span><span class="o">&gt;</span><span class="p">(</span><span class="n">v</span><span class="p">));</span>  <span class="c1">//本文的重点
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">print</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">v</span><span class="p">));</span>        <span class="c1">//永远调用右值版本的print
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>
+</span></span><span class="line"><span class="cl">  <span class="n">std</span><span class="o">::</span><span class="n">cout</span> <span class="o">&lt;&lt;</span> <span class="s">&#34;======================&#34;</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">*</span> <span class="n">argv</span><span class="p">[])</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">x</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">testForward</span><span class="p">(</span><span class="n">x</span><span class="p">);</span>             <span class="c1">//实参为左值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span>  <span class="n">testForward</span><span class="p">(</span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">x</span><span class="p">));</span>  <span class="c1">//实参为右值
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>在上面的例子中，变量 v 在函数内部永远是左值，无论它传入函数时是左值还是右值，以此当在函数内调用 print (v) 时，永远使用左值版本，而如果用 std:: move 则永远只能调用右值版本。在很多时候，比如在函数内需要调用类的构造函数时，我们希望以左值传入的 v 能在函数内调用拷贝构造，而右值版本的调用移动构造，即保留其左右值的性质。问题在于，在函数内部似乎难以知晓参数传入前的值类别。</p>
+<p>事实显然并非如此，注意上面的代码中 testForward 是一个模板参数，且使用了万能引用，根据[[B-Study/C++/类型推导|类型推导]]的规则，万能引用模板在接受左值时模板参数 T 会推导为引用类型，之后发生引用折叠使最终形参为 T&amp;；而对于右值参数 T 会直接推导为不带引用的类型。显然，模板参数 T 为我们提供了在函数内部了解实参传入时是左值还是右值的方法。由此 C++ 提供了 std:: forward&lt;T&gt; 来在函数内部恢复实参的值类别。一种 std:: forward 的实现方法如下：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="k">template</span><span class="o">&lt;</span><span class="k">typename</span> <span class="n">_Tp</span><span class="o">&gt;</span>
+</span></span><span class="line"><span class="cl">   <span class="k">constexpr</span> <span class="n">_Tp</span><span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">   <span class="n">forward</span><span class="p">(</span><span class="k">typename</span> <span class="n">std</span><span class="o">::</span><span class="n">remove_reference</span><span class="o">&lt;</span><span class="n">_Tp</span><span class="o">&gt;::</span><span class="n">type</span><span class="o">&amp;</span> <span class="n">__t</span><span class="p">)</span> <span class="k">noexcept</span>
+</span></span><span class="line"><span class="cl">   <span class="p">{</span> <span class="k">return</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="n">_Tp</span><span class="o">&amp;&amp;&gt;</span><span class="p">(</span><span class="n">__t</span><span class="p">);</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>当传入 testForward 的参数是左值是，_Tp是T&amp;，上面的代码保证不论 T 被推到为 T&amp;还是 T，其形参都是左值引用，符合 testForward 内 v 始终为左值的规律；而对于模板参数被推导为左值引用的情况，以 int 类型为例，上面的代码变为：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="k">constexpr</span> <span class="kt">int</span> <span class="o">&amp;</span> <span class="c1">//引用折叠
+</span></span></span><span class="line"><span class="cl"><span class="c1"></span><span class="n">forward</span><span class="p">(</span><span class="kt">int</span> <span class="o">&amp;</span> <span class="n">__t</span><span class="p">)</span> <span class="k">noexcept</span> 
+</span></span><span class="line"><span class="cl"> <span class="p">{</span> <span class="k">return</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span> <span class="o">&amp;&gt;</span><span class="p">(</span><span class="n">__t</span><span class="p">);</span> <span class="p">}</span> <span class="c1">//引用折叠
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>发生引用折叠后最终返回值为左值引用。而对于模板参数被推导为不带引用的类型，即输入 testForward 的是右值引用的情况，forward 变为：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cpp" data-lang="cpp"><span class="line"><span class="cl"><span class="k">constexpr</span> <span class="kt">int</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl"><span class="n">forward</span><span class="p">(</span><span class="kt">int</span> <span class="o">&amp;</span> <span class="n">__t</span><span class="p">)</span> <span class="k">noexcept</span> 
+</span></span><span class="line"><span class="cl"> <span class="p">{</span> <span class="k">return</span> <span class="k">static_cast</span><span class="o">&lt;</span><span class="kt">int</span> <span class="o">&amp;&amp;&gt;</span><span class="p">(</span><span class="n">__t</span><span class="p">);</span> <span class="p">}</span> 
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>最终代码将左值引用转换为右值。</p>
+<div class="details admonition warning open">
+      <div class="details-summary admonition-title">
+        <i class="icon fas fa-exclamation-triangle fa-fw"></i>注意<i class="details-icon fas fa-angle-right fa-fw"></i>
+      </div>
+      <div class="details-content">
+        <div class="admonition-content">注意到static_cast&lt;int &amp;&amp;&gt;(__t) 返回的应当是一个将亡值，类似于std::move()的返回结果，因此可以匹配到右值引用为形参的移动语义上，而非像上面的例子中的右值引用一样调用左值引用版本的函数。</div>
+      </div>
+    </div>
+<p>完美转发使得移动语义的使用范围大大提升，标准库的许多容器为了效率都基于完美转发，对于拷贝消耗远大于移动的情况，完美转发+移动语义是一种高效且安全的处理方法。</p>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/tags/c&#43;&#43;/">C&#43;&#43;</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    </footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+    window.addEventListener("DOMContentLoaded", () => {
+	const mainArticleElement = document.querySelector(".main-article");
+        renderMathInElement(mainArticleElement, {
+            delimiters: [
+                { left: "$$", right: "$$", display: true },
+                { left: "$", right: "$", display: false },
+                { left: "\\(", right: "\\)", display: false },
+                { left: "\\[", right: "\\]", display: true }
+            ],
+            ignoredClasses: ["gist"]
+        });})
+</script>
+
+    
+</article>
+
+    
+
+    
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="">
+    <a href="/p/lambda%E9%97%AD%E5%8C%85%E4%B8%8Econst%E6%88%90%E5%91%98%E5%87%BD%E6%95%B0/">
+        
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Lambda闭包与const成员函数</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="">
+    <a href="/p/%E7%B1%BB%E5%9E%8B%E6%8E%A8%E5%AF%BC/">
+        
+        
+
+        <div class="article-details">
+            <h2 class="article-title">类型推导</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
+
+     
+    
+        
+    <div class="disqus-container">
+    <div id="disqus_thread"></div>
+<script>
+    window.disqus_config = function () {
+    
+    
+    
+    };
+    (function() {
+        if (["localhost", "127.0.0.1"].indexOf(window.location.hostname) != -1) {
+            document.getElementById('disqus_thread').innerHTML = 'Disqus comments not available by default when the website is previewed locally.';
+            return;
+        }
+        var d = document, s = d.createElement('script'); s.async = true;
+        s.src = '//' + "hugo-theme-stack" + '.disqus.com/embed.js';
+        s.setAttribute('data-timestamp', +new Date());
+        (d.head || d.body).appendChild(s);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="https://disqus.com" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</div>
+
+<style>
+    .disqus-container {
+        background-color: var(--card-background);
+        border-radius: var(--card-border-radius);
+        box-shadow: var(--shadow-l1);
+        padding: var(--card-padding);
+    }
+</style>
+
+<script>
+    window.addEventListener('onColorSchemeChange', (e) => {
+        if (typeof DISQUS == 'object') {
+            DISQUS.reset({
+                reload: true
+            });
+        }
+    })
+</script>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2024 - 
+        
+        2025 RetrO
+    </section>
+    
+    <section class="powerby">
+        Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
+        Theme <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> designed by <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a>
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js" defer></script>
+<script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script>
+
+<script>
+  let details = document.getElementsByClassName('details')
+  details = details || [];
+  for (let i = 0; i < details.length; i++) {
+    let element = details[i]
+    const summary = element.getElementsByClassName('details-summary')[0];
+    if (summary) {
+      summary.addEventListener('click', () => {
+        element.classList.toggle('open');
+      }, false);
+    }
+  }
+</script>
+    </body>
+</html>
