@@ -7,7 +7,72 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>RetrO</copyright>
-        <lastBuildDate>Sun, 16 Mar 2025 23:55:11 +0800</lastBuildDate><atom:link href="https://localhost:1313/categories/%E6%8A%80%E6%9C%AF/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Sat, 05 Apr 2025 14:12:48 +0800</lastBuildDate><atom:link href="https://localhost:1313/categories/%E6%8A%80%E6%9C%AF/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>Wall Function</title>
+        <link>https://localhost:1313/p/wall-function/</link>
+        <pubDate>Sat, 05 Apr 2025 14:12:48 +0800</pubDate>
+        
+        <guid>https://localhost:1313/p/wall-function/</guid>
+        <description>&lt;p&gt;许多实验结果表明，无论是内流还是外流，近壁面的流向速度沿垂直于壁面方向的变化具有一定的规律，此规律被称为壁面函数 (Wall function 或 Law of the wall)。&lt;/p&gt;
+&lt;h1 id=&#34;基本假设&#34;&gt;基本假设
+&lt;/h1&gt;&lt;p&gt;对于高雷诺数的流动，一般认为在近壁面流动的惯性以及压力梯度的影响较小，因此可以假定流动在近壁面主要受到以下两个因素的影响：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;流体的动量向壁面传输速率，用切应力 $\tau$ 表示。&lt;/li&gt;
+&lt;li&gt;分子的扩散效应，即粘性效应。&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;近壁面流动仅受上面两个因素影响的假设随着 $\frac{y}{\delta}$ 的减少而增强，其中 $\delta$ 为边界层厚度。由于切应力 $\tau$ 在近壁面的变化较慢，因此一般使用壁面上的切应力 $\tau_{w}$ 代替，粘性效应由动力粘性 $\nu=\frac{\mu}{\rho}$ 表征。由于湍流运动在气体和液体中是相似的，因此同样将 $\tau_{w}$ 除以 $\rho$ 来排除密度的影响。注意 $\frac{\tau_{w}}{\rho}$ 的量纲为 $m^2 /s^2$，$\nu$ 的量纲为 $m^2/ s$，因此可以定义一个具有速度量纲的新物理量：&lt;/p&gt;
+$$
+u_{\tau}=\sqrt{\frac{\tau_{w}}{\rho} }
+$$&lt;p&gt;由于此量只与摩擦 ($\tau_{w}$) 相关，因此称之为&lt;strong&gt;摩擦速度&lt;/strong&gt; (friction velocity)。从摩擦速度出发与粘性效应结合可以定义一个新的长度量纲 $\delta_{\nu}=\nu/ u_{\tau}$。推导壁面函数的基本假设是，边界层内的物理量可以由 $u_{\tau}、\delta_{\nu}、\delta$ 以及 $y$ 表示。&lt;/p&gt;
+&lt;h1 id=&#34;对数层和粘性底层&#34;&gt;对数层和粘性底层
+&lt;/h1&gt;&lt;p&gt;推导壁面函数的第一种思路是，假定速度梯度可以由上面提到的四个个变量表示，通过量纲分析得到如下的形式：&lt;/p&gt;
+$$
+\frac{\partial U}{\partial y}=\frac{u_{\tau}}{y}\Phi\left( \frac{y}{\delta_{\nu}}, \frac{y}{\delta} \right)
+$$&lt;p&gt;注意到函数 F 的自变量是无量纲的，假设函数 F 在任何湍流边界层中均相同。对于边界层的近壁面区域 ($y/ \delta\ll 1$ )，可以认为速度分布是由粘性尺度 $\delta_{\nu}$ 决定而与边界层厚度 $\delta$ 无关，因此得到：&lt;/p&gt;
+$$
+\begin{array}{l}\frac{\mathrm{d}\langle U\rangle}{\mathrm{d} y}=\frac{u_{\tau}}{y} \Phi_{\mathrm{I}}\left(\frac{y}{\delta_{v}}\right), \quad \text { for } \frac{y}{\delta} \ll 1,\\\Phi_{\mathrm{I}}\left(\frac{y}{\delta_{v}}\right)=\lim _{y / \delta \rightarrow 0} \Phi\left(\frac{y}{\delta_{v}}, \frac{y}{\delta}\right)\end{array}
+$$&lt;p&gt;引入新的变量将方程改写为无量纲形式：&lt;/p&gt;
+$$
+u^{+}= \frac{U}{u_{\tau}} \quad\quad\text{and} \quad \quad y^{+}=\frac{u_{\tau }y}{\nu}
+$$$$
+\frac{\mathrm{d} u^{+}}{\mathrm{d} y^{+}}=\frac{1}{y^{+}} \Phi_{\mathrm{I}}\left(y^{+}\right) .
+$$&lt;p&gt;积分得到：&lt;/p&gt;
+$$
+u^+=f_{w}(y^+)
+$$&lt;p&gt;此方程被称为 law of the wall，从其中可以看出，$u^+$ 只依赖于 $y^+$。&lt;/p&gt;
+&lt;h2 id=&#34;粘性底层&#34;&gt;粘性底层
+&lt;/h2&gt;&lt;p&gt;实验结果表明，在 $y^+$ 较小的区域 ($y^+&amp;lt;5$ )，可以认为 $u^+$ 与 $y^+$ 成线性关系，即：&lt;/p&gt;
+$$
+f_{w}(y^+)=y^++O(y^{+2})
+$$&lt;p&gt;实验结果与此壁面函数的对比见下图：&lt;/p&gt;
+&lt;center&gt;&lt;img src=&#34;https://localhost:1313/image/wall_function/image1.png&#34; width=&#34;90%&#34; /&gt;&lt;/center&gt;
+&lt;p&gt;可以看到在 $y^+$ 较小时拟合较好。&lt;/p&gt;
+&lt;h2 id=&#34;对数层&#34;&gt;对数层
+&lt;/h2&gt;&lt;p&gt;对于较高雷诺数的流动，在满足 $y/\delta \ll1$ 的条件下可以将近壁面的边界层分为粘性占主要作用的粘性底层以及 $y^+$ 更大的，切应力占主导地位的对数层。在对数层内，由于粘性的作用较小，$\Phi_{\mathrm{I}}$ 通过 $\delta_{\nu}$ 对 $\nu$ 的依赖消失，因此函数变为一个常数：&lt;/p&gt;
+$$
+\Phi_{\mathrm{I}}\left(y^{+}\right)=\frac{1}{\kappa}, \quad \text { for } \frac{y}{\delta} \ll 1 \text { and } y^{+} \gg 1 
+$$&lt;p&gt;常数 $\kappa$ 被称为卡门常数，在满足此条件时，速度梯度为：&lt;/p&gt;
+$$
+\frac{\mathrm{d} u^{+}}{\mathrm{d} y^{+}}=\frac{1}{\kappa y^{+}}
+$$&lt;p&gt;对上面的公式在 $y$ 上进行积分，可以得到：&lt;/p&gt;
+$$
+u^+= \frac{1}{\kappa} \ln y^++C
+$$&lt;p&gt;其中 $C$ 为积分常数，实验结果表明，对于光滑表面可以取 $C\approx 5.0$，$\kappa \approx 0.41$。下图展示了在对数区内不同实验与拟合结果的对比：&lt;/p&gt;
+&lt;center&gt;&lt;img src=&#34;https://localhost:1313/image/wall_function/image2.png&#34; width=&#34;90%&#34; /&gt;&lt;/center&gt;
+&lt;p&gt;下图展示了实验得出的典型湍流边界层的速度分布以及与壁面函数的对比，可以看到，在 $y^+$ 较大，即粘性效应不占主导地位的区域内，上面得到的壁面函数与实验结果吻合较好，而在 $y^+$ 较小的粘性占主导地位的部分，则 $u^+$ 与 $y^+$ 之间主要是线性关系。根据这两部分的特点，可以将边界层分为粘性占主导地位的粘性底层以及切应力占主导地位的对数层。两者之间的过渡区称为过渡层。&lt;/p&gt;
+&lt;center&gt;&lt;figure&gt;&lt;img src=&#34;https://localhost:1313/image/wall_function/image3.png&#34; width=&#34;90%&#34;&gt;&lt;figcaption&gt;
+      &lt;h4&gt;典型湍流边界层流向速度分布及壁面函数&lt;/h4&gt;
+    &lt;/figcaption&gt;
+&lt;/figure&gt;
+&lt;/center&gt;
+&lt;h1 id=&#34;总结&#34;&gt;总结
+&lt;/h1&gt;&lt;p&gt;壁面函数的基本假设是湍流边界层内的流动只受到湍流切应力以及粘性的影响，基于这一假设，通过数学分析以及实验研究可以观察到湍流边界层内流动的自相似性，即经过无量纲化后的 $u^+$ 和 $y^+$ 之间的关系在不同的湍流边界层内是相同。根据 $u^+$ 和 $y^+$ 之间的关系，可以将湍流边界层分为粘性底层、对数层以及过度区三个部分，其中在粘性底层内粘性占主导作用而对数层内湍流切应力占主导作用。在粘性底层内 $u^+$ 与 $y^+$ 之间主要是线性关系，而在粘性底层内可以通过如下关系式表示：&lt;/p&gt;
+$$
+u^+= \frac{1}{\kappa} \ln y^+C
+$$&lt;p&gt;这种 $u^+$ 和 $y^+$ 之间的关系统称为壁面函数。实际上，壁面函数的推导和表达式不止有一种，且传统的壁面函数在很多情况下会失效，如具有强压力梯度的流动或分离流动等。需要学者也针对这些壁面函数的缺陷提出了许多改进。&lt;/p&gt;
+</description>
+        </item>
+        <item>
         <title>右值、移动语义、完美转发</title>
         <link>https://localhost:1313/p/%E5%8F%B3%E5%80%BC%E7%A7%BB%E5%8A%A8%E8%AF%AD%E4%B9%89%E5%AE%8C%E7%BE%8E%E8%BD%AC%E5%8F%91/</link>
         <pubDate>Sun, 16 Mar 2025 23:55:11 +0800</pubDate>
